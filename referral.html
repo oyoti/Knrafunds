@@ -693,26 +693,25 @@
       document.getElementById('refCode').textContent = refCode;
       document.getElementById('refLink').value = currentRefLink;
 
-      // 3. Fetch referral details from the pre-joined view
-      //    (view already filters to auth.uid() = referrer_user_id)
-      const referrals = await dbGet(
-        `/referral_details?select=*&order=created_at.desc`
-      );
+      // 3. Read stats directly from referral_stats (one row per user)
+      const statsRows = await dbGet(`/referral_stats?user_id=eq.${user.id}&select=total_referrals,converted,total_earned,pending`);
+      const stats = statsRows[0] || {};
 
-      // 4. Compute stats
-      const totalReferrals = referrals.length;
-      const confirmed = referrals.filter(r => r.status === 'confirmed');
-      const pending   = referrals.filter(r => r.status === 'pending');
+      const totalReferrals = parseInt(stats.total_referrals) || 0;
+      const convertedAmt   = parseFloat(stats.converted) || 0;
+      const totalEarned    = parseFloat(stats.total_earned) || 0;
+      const pendingAmt     = parseFloat(stats.pending) || 0;
 
-      const convertedAmt = confirmed.reduce((sum, r) => sum + (parseFloat(r.commission) || 0), 0);
-      const totalEarned  = referrals.reduce((sum, r) => sum + (parseFloat(r.commission) || 0), 0); // converted + pending
-      const pendingAmt   = pending.reduce((sum, r) => sum + (parseFloat(r.commission) || 0), 0);
-
-      // Display: 0/empty → "0"
       document.getElementById('statTotal').textContent     = totalReferrals > 0 ? totalReferrals : '0';
       document.getElementById('statConverted').textContent = convertedAmt > 0 ? fmtMoney(convertedAmt) : '0';
       document.getElementById('statEarned').textContent    = totalEarned > 0 ? fmtMoney(totalEarned) : '0';
       document.getElementById('statPending').textContent   = pendingAmt > 0 ? fmtMoney(pendingAmt) : '0';
+
+      // 4. Fetch referral details from the pre-joined view (for the table below)
+      //    (view already filters to auth.uid() = referrer_user_id)
+      const referrals = await dbGet(
+        `/referral_details?select=*&order=created_at.desc`
+      );
 
       // 5. Fetch referred users' emails (for display)
       let emailMap = {};
