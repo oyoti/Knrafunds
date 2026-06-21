@@ -208,6 +208,23 @@ function validate(id, errId, fn, errMsg) {
   return ok;
 }
 
+function generateReferralCode() {
+  return 'KNRA-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+}
+
+// ─── REST helper for Supabase (using the signed-up user's own access token) ───
+async function supaFetch(path, options = {}, token = null) {
+  return fetch(`${SUPABASE_URL}/rest/v1${path}`, {
+    ...options,
+    headers: {
+      'apikey':        SUPABASE_ANON,
+      'Authorization': `Bearer ${token || SUPABASE_ANON}`,
+      'Content-Type':  'application/json',
+      ...(options.headers || {}),
+    },
+  });
+}
+
 // Password strength meter
 document.getElementById('password').addEventListener('input', function () {
   const v     = this.value;
@@ -236,13 +253,13 @@ document.getElementById('togglePass2').addEventListener('click', () => {
 });
 
 // ─── FORM SUBMIT ──────────────────────────────────────────────────────────────
-// NOTE: public.users, public.referral_codes, and public.referrals are all
-// created server-side by the on_auth_user_created_referral trigger on
-// auth.users (SECURITY DEFINER, bypasses RLS). The client only needs to
-// call /auth/v1/signup and pass along first_name/last_name/phone/country/
-// role/ref_code as user metadata — the trigger reads that metadata and
-// does the rest atomically. This removes the old race condition where
-// the referral insert was silently dropped by RLS.
+// NOTE: writes go directly from the client into public.users / referral_codes /
+// referrals. This is allowed by scoped RLS INSERT policies (auth.uid() must
+// match the row being written), and the referrals table has a BEFORE INSERT
+// trigger (enforce_referral_integrity) that overwrites referrer_user_id /
+// commission_percentage / is_influencer from the real referral_codes row
+// server-side — so even though the client sends these fields, they can't be
+// tampered with. uses_count on referral_codes auto-increments via trigger too.
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   alertBox.className = 'alert';
@@ -261,72 +278,133 @@ form.addEventListener('submit', async (e) => {
   document.getElementById('termsErr').classList.toggle('show', !termsChecked);
   if (!ok || !termsChecked) return;
 
-  // Collect values
-  const firstName = document.getElementById('firstName').value.trim();
-  const lastName  = document.getElementById('lastName').value.trim();
-  const fullName  = `${firstName} ${lastName}`;
-  const email     = document.getElementById('email').value.trim();
-  const phone     = document.getElementById('phone').value.trim();
-  const country   = document.getElementById('country').value;
-  const password  = document.getElementById('password').value;
+  const firstName       = document.getElementById('firstName').value.trim();
+  const lastName        = document.getElementById('lastName').value.trim();
+  const fullName        = `${firstName} ${lastName}`;
+  const email            = document.getElementById('email').value.trim();
+  const phone             = document.getElementById('phone').value.trim();
+  const country          = document.getElementById('country').value;
+  const password         = document.getElementById('password').value;
+  const newReferralCode  = generateReferralCode();
 
   submitBtn.classList.add('loading');
   submitBtn.disabled = true;
 
   try {
-    // ── Sign up with Supabase Auth. Pass referral code + profile fields
-    //    as metadata so the on_auth_user_created_referral trigger can
-    //    create public.users / referral_codes / referrals server-side. ──
+    // ── STEP 1: Create the auth user ──────────────────────────────────────
     const authRes = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
       method:  'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey':        SUPABASE_ANON,
-      },
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON },
       body: JSON.stringify({
         email,
         password,
-        data: {
-          first_name: firstName,
-          last_name:  lastName,
-          name:       fullName,
-          phone:      phone,
-          country:    country,
-          role:       'trader',
-          ref_code:   refFromUrl || null,
-        },
+        data: { first_name: firstName, last_name: lastName, name: fullName, phone, country, role: 'trader' },
       }),
     });
-
     const authData = await authRes.json();
-
     if (!authRes.ok) {
-      const msg = authData.error_description || authData.msg || authData.message || 'Signup failed.';
-      throw new Error(msg);
+      throw new Error(authData.error_description || authData.msg || authData.message || 'Signup failed.');
     }
 
-    // ── Email confirmation required (no access_token returned) ───────────────
     if (!authData.access_token) {
       showAlert('✅ Account created! Check your email to confirm, then log in.', 'success');
       setTimeout(() => { window.location.href = 'login.html'; }, 3500);
       return;
     }
 
-    // ── Instant login (email confirmation OFF) ───────────────────────────────
     const token  = authData.access_token;
     const userId = authData.user.id;
 
-    // Save session to localStorage
     localStorage.setItem('knra_token',   token);
     localStorage.setItem('knra_refresh', authData.refresh_token);
     localStorage.setItem('knra_user', JSON.stringify({
-      id:      userId,
-      name:    fullName,
-      email:   email,
-      phone:   phone,
-      country: country,
-      role:    'trader',
+      id: userId, name: fullName, email, phone, country, role: 'trader',
     }));
+
+    // ── STEP 2: Write the profile row directly to public.users ─────────────
+    const userInsertRes = await supaFetch('/users', {
+      method:  'POST',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        id:            userId,
+        first_name:    firstName,
+        last_name:     lastName,
+        email,
+        phone,
+        country,
+        role:          'trader',
+        referral_code: newReferralCode,
+        referred_by:   refFromUrl || null,
+      }),
+    }, token);
+
+    if (!userInsertRes.ok) {
+      const errBody = await userInsertRes.json().catch(() => ({}));
+      console.error('public.users insert failed:', errBody);
+    }
+
+    // ── STEP 3: Give the new user their own referral code to share ─────────
+    const codeInsertRes = await supaFetch('/referral_codes', {
+      method:  'POST',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        user_id:         userId,
+        code:            newReferralCode,
+        link:            `https://oyoti.github.io/Kinarafunds-/signup.html?ref=${newReferralCode}`,
+        commission_rate: 10.00,
+        is_influencer:   false,
+      }),
+    }, token);
+
+    if (!codeInsertRes.ok) {
+      const errBody = await codeInsertRes.json().catch(() => ({}));
+      console.error('referral_codes insert failed:', errBody);
+    }
+
+    // ── STEP 4: If they signed up via a referral link, link it ─────────────
+    if (refFromUrl) {
+      try {
+        const lookupRes = await supaFetch(
+          `/referral_codes?code=eq.${encodeURIComponent(refFromUrl)}&select=id,user_id,commission_rate,is_influencer,is_active&limit=1`,
+          { method: 'GET' },
+          token
+        );
+        const lookupData = await lookupRes.json();
+
+        if (lookupRes.ok && Array.isArray(lookupData) && lookupData.length > 0 && lookupData[0].is_active) {
+          const referrer = lookupData[0];
+
+          if (referrer.user_id !== userId) {
+            const refInsertRes = await supaFetch('/referrals', {
+              method:  'POST',
+              headers: { 'Prefer': 'return=minimal' },
+              body: JSON.stringify({
+                referral_code_id:      referrer.id,
+                referrer_user_id:      referrer.user_id,
+                referred_id:           userId,
+                referral_code:         refFromUrl,
+                referrer_code:         refFromUrl,
+                status:                'pending',
+                commission_percentage: referrer.commission_rate,
+                is_influencer:         referrer.is_influencer || false,
+                commission_paid:       0,
+                discount_given:        0,
+              }),
+            }, token);
+
+            if (!refInsertRes.ok) {
+              const errBody = await refInsertRes.json().catch(() => ({}));
+              console.error('referrals insert failed:', errBody);
+            }
+            // uses_count on the referrer's code is bumped automatically server-side
+          }
+        } else {
+          console.warn('Referral code not found or inactive:', refFromUrl);
+        }
+      } catch (refErr) {
+        console.error('Referral linking error:', refErr);
+      }
+    }
 
     showAlert('✅ Account created! Redirecting to your dashboard…', 'success');
     setTimeout(() => { window.location.href = 'dashboard.html'; }, 1800);
