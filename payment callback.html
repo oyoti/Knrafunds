@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Payment Complete — KNRA Funded</title>
+<link rel="icon" href="data:,">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{--white:#ffffff;--off-white:#f8f7f4;--charcoal:#1a1a1a;--mid:#4a4a4a;--light:#888888;--gold:#b8860b;--gold-light:#d4a017;--gold-pale:#fdf6e3;--border:#e8e1d6;--green:#1a7a4a;--red:#c0392b;--error:#fef2f2;--success-bg:#e8f5ed;--card-shadow:0 4px 24px rgba(0,0,0,0.07);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--charcoal);min-height:100vh;display:flex;flex-direction:column;}
+.topnav{background:var(--charcoal);padding:1rem 2rem;display:flex;align-items:center;}
+.topnav-logo{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:900;color:var(--white);text-decoration:none;}
+.topnav-logo span{color:var(--gold);}
+.center{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem;}
+.card{background:var(--white);border-radius:20px;border:1px solid var(--border);box-shadow:var(--card-shadow);max-width:560px;width:100%;overflow:hidden;animation:fadeUp 0.4s ease both;}
+
+/* ── Checking screen ── */
+.checking-screen{padding:3rem 2rem;text-align:center;}
+.spinner-wrap{margin:0 auto 1.5rem;width:64px;height:64px;}
+.spinner-ring{width:64px;height:64px;border:4px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 0.9s linear infinite;}
+.checking-screen h2{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:900;margin-bottom:0.5rem;}
+.checking-screen p{font-size:0.88rem;color:var(--light);line-height:1.6;max-width:360px;margin:0 auto;}
+.checking-dots::after{content:'...';animation:dots 1.5s steps(3,end) infinite;}
+@keyframes dots{0%,100%{content:''}33%{content:'.'}66%{content:'..'}100%{content:'...'}}
+
+/* ── Success screen ── */
+.success-screen{padding:2.5rem 2rem;text-align:center;}
+.success-icon{width:72px;height:72px;border-radius:50%;background:var(--success-bg);border:3px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 1.5rem;}
+.success-screen h2{font-family:'Playfair Display',serif;font-size:1.7rem;font-weight:900;margin-bottom:0.5rem;}
+.success-screen>p{font-size:0.88rem;color:var(--light);margin-bottom:1.5rem;line-height:1.6;}
+.creds-box{background:var(--gold-pale);border:1px solid var(--gold);border-radius:12px;padding:1.25rem;text-align:left;margin-bottom:1rem;}
+.creds-box-title{font-size:0.78rem;font-weight:700;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:0.85rem;}
+.cred-row{display:flex;justify-content:space-between;align-items:center;font-size:0.84rem;padding:0.5rem 0;border-bottom:1px solid rgba(184,134,11,0.15);}
+.cred-row:last-child{border-bottom:none;}
+.cred-row .lbl{color:var(--mid);font-weight:500;}
+.cred-row .val{font-weight:700;color:var(--charcoal);display:flex;align-items:center;gap:0.5rem;}
+.cred-val-text{font-family:monospace;font-size:0.9rem;letter-spacing:0.5px;}
+.cred-copy{padding:3px 10px;border:1px solid var(--gold);border-radius:4px;background:none;color:var(--gold);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.cred-copy:hover{background:var(--gold);color:var(--white);}
+.txn-box{background:var(--off-white);border:1px solid var(--border);border-radius:10px;padding:1.25rem;text-align:left;margin-bottom:1rem;}
+.txn-row{display:flex;justify-content:space-between;align-items:flex-start;font-size:0.84rem;padding:0.35rem 0;}
+.txn-row .lbl{color:var(--light);flex-shrink:0;margin-right:1rem;}
+.txn-row .val{font-weight:600;text-align:right;word-break:break-all;}
+.warn-box{background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:0.85rem 1rem;font-size:0.82rem;color:#92400e;margin-bottom:1.25rem;display:flex;gap:0.5rem;align-items:flex-start;text-align:left;line-height:1.5;}
+.action-btns{display:flex;gap:0.75rem;margin-top:0.5rem;}
+.btn-dashboard{flex:1;display:inline-block;padding:0.85rem 1rem;background:var(--charcoal);color:var(--white);border-radius:8px;text-decoration:none;font-weight:700;font-size:0.92rem;transition:background 0.2s;text-align:center;}
+.btn-dashboard:hover{background:var(--gold);color:#000;}
+.btn-print{flex:1;padding:0.85rem 1rem;background:none;border:1.5px solid var(--border);color:var(--mid);border-radius:8px;font-weight:700;font-size:0.92rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.btn-print:hover{border-color:var(--gold);color:var(--gold);}
+
+/* ── Failed screen ── */
+.failed-screen{padding:2.5rem 2rem;text-align:center;}
+.failed-icon{width:72px;height:72px;border-radius:50%;background:var(--error);border:3px solid var(--red);display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 1.5rem;}
+.failed-screen h2{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:900;margin-bottom:0.5rem;color:var(--red);}
+.failed-screen p{font-size:0.88rem;color:var(--light);margin-bottom:1.5rem;line-height:1.6;}
+.btn-retry{display:inline-block;padding:0.85rem 2rem;background:var(--charcoal);color:var(--white);border-radius:8px;text-decoration:none;font-weight:700;font-size:0.92rem;transition:background 0.2s;}
+.btn-retry:hover{background:var(--gold);color:#000;}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@media print{.btn-print,.btn-dashboard,.warn-box,.topnav{display:none!important;}}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="dashboard.html" class="topnav-logo">KNRA<span>.</span>FUNDED</a>
+</nav>
+
+<div class="center">
+  <div class="card" id="mainCard">
+
+    <!-- Checking screen (shown while polling) -->
+    <div class="checking-screen" id="checkingScreen">
+      <div class="spinner-wrap"><div class="spinner-ring"></div></div>
+      <h2>Confirming Payment<span class="checking-dots"></span></h2>
+      <p>Please wait while we verify your payment with Pesapal and set up your trading account. This usually takes under 30 seconds.</p>
+    </div>
+
+    <!-- Success screen (shown after confirmed) -->
+    <div class="success-screen" id="successScreen" style="display:none;">
+      <div class="success-icon">✅</div>
+      <h2>Account Created!</h2>
+      <p>Your challenge account is ready to trade.<br/>Save your credentials — you'll need them to connect your platform.</p>
+      <div class="creds-box" id="credsBox">
+        <div class="creds-box-title">🔐 Your Account Credentials</div>
+      </div>
+      <div class="warn-box">⚠️<div><strong>Save these credentials now!</strong> You can view them anytime in your <strong>Accounts</strong> dashboard. Never share your password.</div></div>
+      <div class="txn-box" id="txnBox"></div>
+      <div class="action-btns">
+        <button class="btn-print" onclick="window.print()">🖨️ Print Receipt</button>
+        <a href="dashboard.html" class="btn-dashboard">Go to Dashboard →</a>
+      </div>
+    </div>
+
+    <!-- Failed screen -->
+    <div class="failed-screen" id="failedScreen" style="display:none;">
+      <div class="failed-icon">❌</div>
+      <h2>Payment Not Confirmed</h2>
+      <p id="failedMsg">Your payment could not be confirmed. If you completed the payment, please contact support with your reference number. You will not be charged twice.</p>
+      <a href="challenges.html" class="btn-retry">← Try Again</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://hhkztoklgeozegehcsmc.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhoa3p0b2tsZ2VvemVnZWhjc21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMjI1MjEsImV4cCI6MjA5NTc5ODUyMX0.fWs-vU_gIXLNJUh1DA1edrqKh7tc3wv9hjT-ZhhjytY';
+
+const merchantRef = sessionStorage.getItem('knra_merchant_ref');
+const challenge   = JSON.parse(sessionStorage.getItem('knra_selected_challenge') || '{}');
+const user        = JSON.parse(localStorage.getItem('knra_user') || '{}');
+const token       = localStorage.getItem('knra_token') || ANON_KEY;
+
+if (!merchantRef || !user.id) {
+  window.location.href = 'challenges.html';
+}
+
+async function dbGet(endpoint) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1${endpoint}`, {
+    headers: {
+      'apikey': ANON_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function copyToClipboard(text, btn) {
+  navigator.clipboard.writeText(text).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+  });
+  btn.textContent = 'Copied!';
+  setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+}
+
+function renderCreds(loginNum, loginPass, accountSize, accountRef) {
+  const rows = [
+    { lbl: 'Login Number', val: String(loginNum), copyable: true },
+    { lbl: 'Password',     val: String(loginPass), copyable: true },
+    { lbl: 'Account Size', val: '$' + accountSize, copyable: false },
+    { lbl: 'Phase',        val: 'Phase 1',          copyable: false },
+    { lbl: 'Platform',     val: 'MT5',              copyable: false },
+    { lbl: 'Server',       val: 'KNRA-Live',        copyable: false },
+    { lbl: 'Account Ref',  val: String(accountRef), copyable: false },
+  ];
+  const box = document.getElementById('credsBox');
+  box.innerHTML = '<div class="creds-box-title">🔐 Your Account Credentials</div>';
+  rows.forEach(row => {
+    const div = document.createElement('div'); div.className = 'cred-row';
+    const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = row.lbl;
+    const valWrap = document.createElement('span'); valWrap.className = 'val';
+    const valText = document.createElement('span'); valText.className = 'cred-val-text'; valText.textContent = row.val;
+    valWrap.appendChild(valText);
+    if (row.copyable) {
+      const btn = document.createElement('button'); btn.className = 'cred-copy'; btn.textContent = 'Copy';
+      const v = row.val; btn.onclick = () => copyToClipboard(v, btn);
+      valWrap.appendChild(btn);
+    }
+    div.appendChild(lbl); div.appendChild(valWrap); box.appendChild(div);
+  });
+}
+
+function showSuccess(txn, creds, account) {
+  const loginNum  = creds?.login_number  || '—';
+  const loginPass = creds?.login_password || '—';
+  const accSize   = account?.size || challenge.accountSize || '—';
+  const accRef    = account?.account_ref || '—';
+
+  renderCreds(loginNum, loginPass, accSize, accRef);
+
+  document.getElementById('txnBox').innerHTML = `
+    <div class="txn-row"><span class="lbl">Reference</span><span class="val">${txn.reference || merchantRef}</span></div>
+    <div class="txn-row"><span class="lbl">Challenge</span><span class="val">${challenge.name || txn.name || '—'}</span></div>
+    <div class="txn-row"><span class="lbl">Amount Paid</span><span class="val">KES ${(txn.amount * 130).toLocaleString()} ($${txn.amount})</span></div>
+    <div class="txn-row"><span class="lbl">Payment Method</span><span class="val">Pesapal / M-Pesa</span></div>
+    <div class="txn-row"><span class="lbl">Status</span><span class="val" style="color:var(--green);font-weight:700;">✅ Confirmed</span></div>
+    <div class="txn-row"><span class="lbl">Date</span><span class="val">${new Date(txn.created_at).toLocaleString()}</span></div>
+  `;
+
+  document.getElementById('checkingScreen').style.display = 'none';
+  document.getElementById('successScreen').style.display  = 'block';
+
+  // Clear session storage now that we've shown the data
+  sessionStorage.removeItem('knra_order_tracking_id');
+  sessionStorage.removeItem('knra_merchant_ref');
+}
+
+function showFailed(msg) {
+  if (msg) document.getElementById('failedMsg').textContent = msg;
+  document.getElementById('checkingScreen').style.display = 'none';
+  document.getElementById('failedScreen').style.display   = 'block';
+}
+
+// Poll Supabase every 4 seconds for up to 3 minutes waiting for IPN to confirm
+let attempts = 0;
+const MAX_ATTEMPTS = 45; // 45 × 4s = 3 minutes
+
+async function pollForConfirmation() {
+  attempts++;
+
+  try {
+    // Look for a completed transaction matching our merchant reference
+    const txns = await dbGet(
+      `/transactions?user_id=eq.${user.id}&reference=eq.${merchantRef}&select=*`
+    );
+
+    const txn = txns?.[0];
+
+    if (!txn) {
+      // Nothing yet — keep polling
+      if (attempts >= MAX_ATTEMPTS) {
+        showFailed(`Payment not confirmed after 3 minutes. Reference: ${merchantRef}. If you paid, contact support.`);
+        return;
+      }
+      setTimeout(pollForConfirmation, 4000);
+      return;
+    }
+
+    if (txn.status === 'completed' && txn.account_id) {
+      // Fetch account details
+      const accounts = await dbGet(`/accounts?id=eq.${txn.account_id}&select=*`);
+      const account  = accounts?.[0];
+
+      // Fetch credentials
+      const creds = await dbGet(`/account_credentials?account_id=eq.${txn.account_id}&select=login_number,login_password`);
+      const cred  = creds?.[0];
+
+      showSuccess(txn, cred, account);
+      return;
+    }
+
+    if (txn.status === 'failed') {
+      showFailed('Your payment was not successful. Please try again or use a different payment method.');
+      return;
+    }
+
+    // Still pending — keep polling
+    if (attempts >= MAX_ATTEMPTS) {
+      showFailed(`Payment not confirmed after 3 minutes. Reference: ${merchantRef}. If you paid, contact support.`);
+      return;
+    }
+    setTimeout(pollForConfirmation, 4000);
+
+  } catch (err) {
+    console.error('Poll error:', err.message);
+    if (attempts >= MAX_ATTEMPTS) {
+      showFailed('Could not verify payment status. Please check your Accounts page or contact support.');
+      return;
+    }
+    setTimeout(pollForConfirmation, 4000);
+  }
+}
+
+// Start polling immediately when page loads
+pollForConfirmation();
+</script>
+</body>
+</html>
