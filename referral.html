@@ -678,9 +678,9 @@
       document.getElementById('refCode').textContent = refCode;
       document.getElementById('refLink').value = currentRefLink;
 
-      // 3. Fetch stats from referral_stats table
-      console.log('Fetching stats for user:', user.id);
-      const statsRows = await dbGet(`/referral_stats?user_id=eq.${user.id}&select=total_referrals,converted,total_earned,pending`);
+      // 3. Fetch stats from referral_stats table using referrer_code
+      console.log('Fetching stats for referrer code:', refCode);
+      const statsRows = await dbGet(`/referral_stats?referrer_code=eq.${refCode}&select=total_referrals,converted,total_earned,pending`);
       console.log('Stats rows:', statsRows);
       const stats = statsRows[0] || {};
       console.log('Stats object:', stats);
