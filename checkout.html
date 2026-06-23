@@ -283,9 +283,11 @@ async function startPayment() {
     });
 
     const data = await res.json();
+    console.log('Response status:', res.status);
+    console.log('Response data:', data);
 
     if (!res.ok || !data.redirect_url) {
-      throw new Error(data.error || 'Could not start payment. Please try again.');
+      throw new Error(data.error || data.message || 'Could not start payment. Please try again.');
     }
 
     // Save the tracking ID so the callback page can poll status
@@ -296,6 +298,7 @@ async function startPayment() {
     window.location.href = data.redirect_url;
 
   } catch (err) {
+    console.error('Payment error:', err);
     showAlert(err.message, 'error');
     btn.classList.remove('loading');
     btn.disabled = false;
