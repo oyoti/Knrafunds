@@ -41,7 +41,8 @@
       flex-direction: column;
       position: fixed;
       top: 0; left: 0;
-      z-index: 100;
+      z-index: 200;
+      transition: transform 0.3s ease;
     }
 
     .sidebar-logo {
@@ -64,7 +65,7 @@
       margin-top: 2px;
     }
 
-    .sidebar-nav { flex: 1; padding: 16px 0; }
+    .sidebar-nav { flex: 1; padding: 16px 0; overflow-y: auto; }
 
     .nav-item {
       display: flex;
@@ -104,6 +105,7 @@
       border: 1px solid var(--gold);
       display: flex; align-items: center; justify-content: center;
       font-size: 0.8rem; font-weight: 600; color: var(--gold);
+      flex-shrink: 0;
     }
 
     .user-name { font-size: 0.8rem; font-weight: 600; }
@@ -126,6 +128,53 @@
     }
     .logout-btn:hover { border-color: var(--red); color: var(--red); }
     .logout-btn svg { width: 14px; height: 14px; }
+
+    /* ── Sidebar Overlay Backdrop ── */
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 150;
+      backdrop-filter: blur(2px);
+    }
+    .sidebar-backdrop.active { display: block; }
+
+    /* ── Mobile Top Bar ── */
+    .mobile-topbar {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 100;
+    }
+
+    .mobile-logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.3rem;
+      color: var(--gold);
+      letter-spacing: 2px;
+    }
+
+    .hamburger-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 7px 9px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+    .hamburger-btn:hover { border-color: var(--gold); color: var(--gold); }
+    .hamburger-btn svg { width: 20px; height: 20px; }
 
     /* ── Main ── */
     .main {
@@ -508,6 +557,7 @@
     .toast.show { transform: translateY(0); opacity: 1; }
     .toast.error { border-color: var(--red); color: var(--red); }
 
+    /* ── Responsive ── */
     @media (max-width: 1100px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .profit-card { grid-column: span 2; }
@@ -516,23 +566,80 @@
     }
 
     @media (max-width: 768px) {
-      .sidebar { transform: translateX(-100%); }
-      .main { margin-left: 0; max-width: 100vw; padding: 20px; }
+      /* Show mobile top bar */
+      .mobile-topbar { display: flex; }
+
+      /* Sidebar slides off-screen by default */
+      .sidebar {
+        transform: translateX(-100%);
+        top: 0;
+        z-index: 200;
+        /* Allow full height scroll inside sidebar */
+        overflow-y: auto;
+      }
+      /* Open state — toggled by JS */
+      .sidebar.open { transform: translateX(0); }
+
+      /* Main content — no left margin, top padding for topbar */
+      .main {
+        margin-left: 0;
+        max-width: 100vw;
+        padding: 20px;
+        padding-top: 72px; /* clear the fixed topbar */
+      }
+
       .stats-grid { grid-template-columns: 1fr; }
       .profit-card, .payout-card { grid-column: span 1; }
       .nav-cards { grid-template-columns: 1fr; }
-      .hero { flex-direction: column; gap: 20px; align-items: flex-start; }
-      .hero-actions { align-items: flex-start; flex-direction: row; }
+
+      .hero {
+        flex-direction: column;
+        gap: 20px;
+        align-items: flex-start;
+      }
+      .hero-actions {
+        align-items: flex-start;
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+
+      /* Sidebar logo area — add close button */
+      .sidebar-logo {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
     }
   </style>
 </head>
 <body>
 
+<!-- ── Mobile Top Bar ── -->
+<div class="mobile-topbar">
+  <span class="mobile-logo">KNRA</span>
+  <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Open menu">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+    </svg>
+  </button>
+</div>
+
+<!-- ── Sidebar Backdrop ── -->
+<div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
+
 <!-- ── Sidebar ── -->
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
-    <h1>KNRA</h1>
-    <p>Trading Platform</p>
+    <div>
+      <h1>KNRA</h1>
+      <p>Trading Platform</p>
+    </div>
+    <!-- Close button visible on mobile only -->
+    <button onclick="closeSidebar()" aria-label="Close menu" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;display:none;" id="sidebarCloseBtn">
+      <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
   </div>
   <nav class="sidebar-nav">
     <a href="dashboard.html" class="nav-item active">
@@ -596,7 +703,6 @@
     <div class="hero-text">
       <h2>
         Welcome back, <span class="name" id="heroName">—</span>
-        <!-- Hand wave SVG -->
         <svg class="hero-wave" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
             d="M7 11.5V7a1.5 1.5 0 013 0v4m0-4V5.5a1.5 1.5 0 013 0V11m0-3.5a1.5 1.5 0 013 0V11m0 0v3a5 5 0 01-5 5h-1a5 5 0 01-5-5V9.5"/>
@@ -731,18 +837,112 @@
   const SUPA_URL = 'https://hhkztoklgeozegehcsmc.supabase.co';
   const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhoa3p0b2tsZ2VvemVnZWhjc21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMjI1MjEsImV4cCI6MjA5NTc5ODUyMX0.fWs-vU_gIXLNJUh1DA1edrqKh7tc3wv9hjT-ZhhjytY';
 
+  /* ── Sidebar toggle ── */
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarBackdrop').classList.toggle('active');
+  }
+
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarBackdrop').classList.remove('active');
+  }
+
+  /* Show close button inside sidebar on mobile */
+  function updateSidebarCloseBtn() {
+    const btn = document.getElementById('sidebarCloseBtn');
+    if (window.innerWidth <= 768) {
+      btn.style.display = 'block';
+    } else {
+      btn.style.display = 'none';
+      closeSidebar(); // reset state if resized to desktop
+    }
+  }
+
+  updateSidebarCloseBtn();
+  window.addEventListener('resize', updateSidebarCloseBtn);
+
+  /* ── Friendly error translator ── */
+  function friendlyError(raw, status) {
+    const msg = (raw || '').toLowerCase();
+
+    // Session / auth errors
+    if (msg.includes('jwt') || msg.includes('invalid token') || msg.includes('token is expired') ||
+        msg.includes('not authenticated') || status === 401) {
+      return { message: 'Your session has expired. Please sign in again.', redirect: 'login.html' };
+    }
+    if (msg.includes('permission denied') || msg.includes('row-level security') ||
+        msg.includes('rls') || status === 403) {
+      return { message: 'You don\'t have permission to view this. Please sign in again.', redirect: 'login.html' };
+    }
+
+    // Network / connectivity
+    if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network request failed')) {
+      return { message: 'No internet connection. Please check your network and try again.' };
+    }
+    if (msg.includes('timeout') || msg.includes('timed out')) {
+      return { message: 'The request took too long. Please try again in a moment.' };
+    }
+
+    // Server errors
+    if (status >= 500) {
+      return { message: 'Something went wrong on our end. Please refresh and try again.' };
+    }
+    if (status === 429) {
+      return { message: 'Too many requests. Please wait a moment and try again.' };
+    }
+    if (status === 404) {
+      return { message: 'Could not find the requested data. Please refresh.' };
+    }
+
+    // Postgres / Supabase specifics
+    if (msg.includes('duplicate key') || msg.includes('unique constraint')) {
+      return { message: 'This record already exists.' };
+    }
+    if (msg.includes('foreign key') || msg.includes('violates')) {
+      return { message: 'Could not complete the action — a related record is missing.' };
+    }
+    if (msg.includes('null value') || msg.includes('not-null constraint')) {
+      return { message: 'Some required information is missing. Please try again.' };
+    }
+    if (msg.includes('connection') || msg.includes('connect')) {
+      return { message: 'Unable to reach the server. Please try again shortly.' };
+    }
+
+    // Generic fallback — hide the raw message from users
+    return { message: 'Something went wrong. Please refresh the page and try again.' };
+  }
+
+  /* ── DB helper ── */
   async function dbGet(endpoint) {
     const token = localStorage.getItem('knra_token') || ANON_KEY;
-    const res = await fetch(`${SUPA_URL}/rest/v1${endpoint}`, {
-      headers: {
-        'apikey': ANON_KEY,
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    let res;
+    try {
+      res = await fetch(`${SUPA_URL}/rest/v1${endpoint}`, {
+        headers: {
+          'apikey': ANON_KEY,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (networkErr) {
+      const { message } = friendlyError(networkErr.message, 0);
+      throw new Error(message);
+    }
+
     if (!res.ok) {
       const e = await res.json().catch(() => ({}));
-      throw new Error(e.message || `HTTP ${res.status}`);
+      const raw = e.message || e.error || e.hint || '';
+      const { message, redirect } = friendlyError(raw, res.status);
+      if (redirect) {
+        // Give the toast a moment to show before redirecting
+        showToast(message, 'error');
+        setTimeout(() => {
+          logout();
+        }, 2000);
+        throw new Error(message); // stop further execution
+      }
+      throw new Error(message);
     }
     return res.json();
   }
@@ -803,7 +1003,6 @@
       const user = JSON.parse(localStorage.getItem('knra_user') || '{}');
       if (!user || !user.id) { window.location.href = 'login.html'; return; }
 
-      // Sidebar & hero
       const name = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'Trader';
       document.getElementById('heroName').textContent = user.first_name || name.split(' ')[0] || 'Trader';
       document.getElementById('heroSub').textContent = 'Here is a snapshot of your trading performance.';
@@ -811,19 +1010,16 @@
       document.getElementById('sidebarRole').textContent = user.role || 'Trader';
       document.getElementById('sidebarAvatar').textContent = name.charAt(0).toUpperCase();
 
-      // Date
       const dateEl = document.getElementById('todayDate');
       dateEl.innerHTML = `
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
         ${new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
       `;
 
-      // ── 1. Fetch active accounts ──
       const accounts = await dbGet(
         `/accounts?user_id=eq.${user.id}&status=eq.active&select=id,account_ref,phase,size,start_date`
       );
 
-      // ── 2. Active Accounts card ──
       const valEl = document.getElementById('valActiveAccounts');
       const subEl = document.getElementById('subActiveAccounts');
 
@@ -847,7 +1043,6 @@
         subEl.textContent = parts.join(' · ') || 'Click to view';
       }
 
-      // ── 3. Profit card ──
       const profitRowsEl   = document.getElementById('profitRows');
       const profitDivider  = document.getElementById('profitDivider');
       const profitTotalRow = document.getElementById('profitTotalRow');
@@ -887,7 +1082,6 @@
         profitTotalVal.textContent   = (cumulative >= 0 ? '+' : '') + fmtMoney(cumulative);
       }
 
-      // ── 4. Next Payout card ──
       const payoutEl   = document.getElementById('payoutContent');
       const fundedAccs = accounts.filter(a => isFunded(a.phase));
 
@@ -969,19 +1163,21 @@
       }
 
     } catch (err) {
+      // err.message is already user-friendly (translated by dbGet or friendlyError)
       console.error('Dashboard error:', err);
-      showToast(`Error: ${err.message}`, 'error');
-      document.getElementById('heroSub').textContent = 'Could not load dashboard data.';
+      showToast(err.message, 'error');
+
+      const errIcon = `<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+      const retryBtn = `<button onclick="loadDashboard()" style="margin-top:8px;padding:6px 14px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--gold);font-size:0.75rem;cursor:pointer;font-family:inherit;">Try again</button>`;
+
+      document.getElementById('heroSub').textContent = 'Unable to load your dashboard right now.';
       document.getElementById('payoutContent').innerHTML =
-        `<div class="payout-none" style="color:var(--red);">
-          <svg style="width:14px;height:14px;vertical-align:middle;margin-right:4px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          ${err.message}
+        `<div style="padding:8px 0;">
+          <div class="payout-none" style="color:var(--red);display:flex;align-items:center;gap:6px;">${errIcon}${err.message}</div>
+          ${retryBtn}
         </div>`;
       document.getElementById('profitRows').innerHTML =
-        `<div style="font-size:0.82rem;color:var(--red);padding:8px 14px;display:flex;align-items:center;gap:6px;">
-          <svg style="width:14px;height:14px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          ${err.message}
-        </div>`;
+        `<div style="font-size:0.82rem;color:var(--red);padding:8px 14px;display:flex;align-items:center;gap:6px;">${errIcon}${err.message}</div>`;
     }
   }
 
